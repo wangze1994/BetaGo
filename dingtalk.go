@@ -15,7 +15,7 @@ import (
 
 const BaseSendURL = "https://oapi.dingtalk.com/robot/send?access_token={ACCESS_TOKEN}"
 const JSONType = "application/json"
-const RobotToken = "77b9e8567a31c7726d10c4e438277de06de3d80a143136fd82e2fec58701bb4d"
+const RobotToken = "9a004a28c2bba941a71b0062685cac4068a9c73bf8af0f125e385150ef9cfda2"
 const WeatherApi = "https://free-api.heweather.com/v5/now?city=beijing&key=eafba1ed10ea4d0cb67e22d81127c703"
 const JueJinApi = "https://timeline-merger-ms.juejin.im/v1/get_entry_by_timeline?before=&limit=200&src=ios&tag=5597a05ae4b08a686ce56f6f"
 const NewsApi = "http://www.toutiao.com/api/pc/feed/?category=internet&utm_source=toutiao"
