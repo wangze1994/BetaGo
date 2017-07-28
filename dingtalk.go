@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"io/ioutil"
 	"errors"
-	"strconv"
 	"math/rand"
 	"log"
 	"time"
@@ -17,7 +16,7 @@ import (
 const BaseSendURL = "https://oapi.dingtalk.com/robot/send?access_token={ACCESS_TOKEN}"
 const JSONType = "application/json"
 const RobotToken = "77b9e8567a31c7726d10c4e438277de06de3d80a143136fd82e2fec58701bb4d"
-const WeatherApi = "https://api.caiyunapp.com/v2/TAkhjf8d1nlSlspN/116.320295,39.985358/realtime.json"
+const WeatherApi = "https://free-api.heweather.com/v5/now?city=beijing&key=eafba1ed10ea4d0cb67e22d81127c703"
 const JueJinApi = "https://timeline-merger-ms.juejin.im/v1/get_entry_by_timeline?before=&limit=200&src=ios&tag=5597a05ae4b08a686ce56f6f"
 const NewsApi = "http://www.toutiao.com/api/pc/feed/?category=internet&utm_source=toutiao"
 const TouTiaoUrl = "http://www.toutiao.com"
@@ -38,24 +37,10 @@ const (
 	ShowAvatar AvatarState = "0"
 	HideAvatar AvatarState = "1"
 
-	WeatherCron string = "0 37 23 * * 1-5"
-	JueJinCron  string = "0 0 10 * * *"
-	NewsCron    string = "0 0 14,20 * * *"
+	WeatherCron string = "0 30 8 * * 1-5"
+	JueJinCron  string = "0 30 12,18 * * *"
+	NewsCron    string = "0 00 20 * * *"
 )
-
-var skycon = map[string]string{
-	"CLEAR_DAY":           "晴天",
-	"CLEAR_NIGHT":         "晴夜",
-	"PARTLY_CLOUDY_DAY":   "多云",
-	"PARTLY_CLOUDY_NIGHT": "多云",
-	"CLOUDY":              "阴",
-	"RAIN":                "雨",
-	"SNOW":                "雪",
-	"WIND":                "风",
-	"FOG":                 "雾",
-	"HAZE":                "霾",
-	"SLEET":               "冻雨",
-}
 
 // 定义Message结构体
 type DingMessage struct {
@@ -279,14 +264,30 @@ func (builder *MessageBuilder) Build() DingMessage {
 
 // 天气结构体
 type weatherRet struct {
-	Result WeatherResultElement `json:"result"`
+	Result []WeatherResultElement `json:"HeWeather5"`
 }
 
 type WeatherResultElement struct {
-	Temperature float64 `json:"temperature"`
-	Skycon      string `json:"skycon"`
-	Pm25        float64 `json:"pm25"`
-	Humidity    float64 `json:"humidity"`
+	Now NowElement `json:"now"`
+}
+
+type NowElement struct {
+	Cond CondElement `json:"cond"`
+	Fl   string `json:"fl"`
+	Hum  string `json:"hum"`
+	Tem  string `json:"tmp"`
+	Wind WindElement `json:"wind"`
+}
+
+type CondElement struct {
+	Txt string `json:"txt"`
+}
+
+type WindElement struct {
+	Deg string `json:"deg"`
+	Dir string `json:"dir"`
+	Sc  string `json:"sc"`
+	Spd string `json:"spd"`
 }
 
 // 掘金结构体
@@ -323,40 +324,44 @@ type ImageListElement struct {
 }
 
 // 钉天气
-func (dr DingRobot) DingWeather() {
+func (dr DingRobot) DingWeather() error {
+	var err error
 	resp, err := http.Get(WeatherApi)
 	if err != nil {
-
+		return err
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-
+		return err
 	}
 	weatherRet := new(weatherRet)
 	err = json.Unmarshal(body, weatherRet)
 	text := "#### 互联网金融中心天气\n" +
-		"> " + skycon[weatherRet.Result.Skycon] + "天气，温度" +
-		strconv.FormatFloat(weatherRet.Result.Temperature, 'f', 1, 64) + "度，pm25值为" +
-		strconv.FormatFloat(weatherRet.Result.Pm25, 'f', 1, 64) +
-		"，相对湿度" + strconv.FormatFloat(weatherRet.Result.Humidity, 'f', 1, 64) + "\n\n" +
-		"> ###### 08点20分发布 [天气](http://www.weather.com.cn/) \n"
+		"> 天气状况" + weatherRet.Result[0].Now.Cond.Txt + "，温度" +
+		weatherRet.Result[0].Now.Tem + "度，体感温度" +
+		weatherRet.Result[0].Now.Fl + "度，相对湿度" +
+		weatherRet.Result[0].Now.Hum + "%，" +
+		weatherRet.Result[0].Now.Wind.Dir + weatherRet.Result[0].Now.Wind.Sc + "级，" + "\n\n" +
+		"> ###### 08点20分发布 数据来自[和风天气](https://www.heweather.com/) \n"
 	msg := NewMessageBuilder(TypeMarkdown).Markdown("早上好~", text).Build()
 	if err := dr.SendMessage(msg); err != nil {
-
+		return err
 	}
+	return err
 }
 
 // 钉掘金
-func (dr DingRobot) DingJueJin() {
+func (dr DingRobot) DingJueJin() error {
+	var err error
 	resp, err := http.Get(JueJinApi)
 	if err != nil {
-
+		return err
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-
+		return err
 	}
 	juejinRet := new(juejinRet)
 	err = json.Unmarshal(body, juejinRet)
@@ -368,20 +373,22 @@ func (dr DingRobot) DingJueJin() {
 	}
 	msg := NewMessageBuilder(TypeFeedCard).FeedCard(feedCardBuilder.Build()).Build()
 	if err := dr.SendMessage(msg); err != nil {
-
+		return err
 	}
+	return err
 }
 
 // 钉新闻
-func (dr DingRobot) DingNews() {
+func (dr DingRobot) DingNews() error {
+	var err error
 	resp, err := http.Get(NewsApi)
 	if err != nil {
-
+		return err
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-
+		return err
 	}
 	newsRet := new(newsRet)
 	err = json.Unmarshal(body, newsRet)
@@ -394,6 +401,22 @@ func (dr DingRobot) DingNews() {
 	actionCardBuilder := NewActionCardBuilder(tilte, text, OrientationHorizon, HideAvatar)
 	actionCardBuilder.SingleButton("查看详情", actionURL)
 	msg := NewMessageBuilder(TypeActionCard).ActionCard(actionCardBuilder.Build()).Build()
+	if err := dr.SendMessage(msg); err != nil {
+		return err
+	}
+	return err
+}
+
+func (dr DingRobot) DingBasketBall() {
+	mobiles := []string{"13552798619"}
+	msg := NewMessageBuilder(TypeText).At(mobiles, false).Text("今天你俩谁硬？").Build()
+	if err := dr.SendMessage(msg); err != nil {
+
+	}
+}
+
+func (dr DingRobot) ExecError(msgType string) {
+	msg := NewMessageBuilder(TypeText).Text("抱歉~狗狗今儿没拿到最新" + msgType + "数据。").Build()
 	if err := dr.SendMessage(msg); err != nil {
 
 	}
@@ -410,16 +433,26 @@ func main() {
 	c := cron.New()
 	c.AddFunc(WeatherCron, func() {
 		log.Println("start weather")
-		robot.DingWeather()
+		if err := robot.DingWeather(); err != nil {
+			robot.ExecError("天气")
+		}
 	})
 	c.AddFunc(JueJinCron, func() {
 		log.Println("start juejin")
-		robot.DingJueJin()
+		if err := robot.DingJueJin(); err != nil {
+			robot.ExecError("掘金技术文章")
+		}
 	})
 	c.AddFunc(NewsCron, func() {
 		log.Println("start news")
-		robot.DingNews()
+		if err := robot.DingNews(); err != nil {
+			robot.ExecError("头条科技新闻")
+		}
 	})
+	//c.AddFunc(NewsCron, func() {
+	//	log.Println("start basketball")
+	//	robot.DingBasketBall()
+	//})
 	c.Start()
 	select {} //阻塞主线程不退出
 }
