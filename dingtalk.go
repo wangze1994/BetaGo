@@ -422,6 +422,14 @@ func (dr DingRobot) ExecError(msgType string) {
 	}
 }
 
+func (dr DingRobot) DingStart() {
+	mobiles := []string{}
+	msg := NewMessageBuilder(TypeText).Text("启动！").At(mobiles, true).Build()
+	if err := dr.SendMessage(msg); err != nil {
+
+	}
+}
+
 // 生成随机数
 func RandInt64(min, max int) int {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -431,6 +439,7 @@ func RandInt64(min, max int) int {
 func main() {
 	robot := NewRobot(RobotToken)
 	c := cron.New()
+	robot.DingStart()
 	c.AddFunc(WeatherCron, func() {
 		log.Println("start weather")
 		if err := robot.DingWeather(); err != nil {
