@@ -39,7 +39,8 @@ const (
 
 	WeatherCron string = "0 30 8 * * 1-5"
 	JueJinCron  string = "0 30 12,18 * * *"
-	NewsCron    string = "0 00 20 * * *"
+	NewsCron    string = "0 0 20 * * *"
+	ReportCron  string = "0 0 18 * * 1-5"
 )
 
 // 定义Message结构体
@@ -325,7 +326,6 @@ type ImageListElement struct {
 
 // 钉天气
 func (dr DingRobot) DingWeather() error {
-	var err error
 	resp, err := http.Get(WeatherApi)
 	if err != nil {
 		return err
@@ -348,12 +348,11 @@ func (dr DingRobot) DingWeather() error {
 	if err := dr.SendMessage(msg); err != nil {
 		return err
 	}
-	return err
+	return nil
 }
 
 // 钉掘金
 func (dr DingRobot) DingJueJin() error {
-	var err error
 	resp, err := http.Get(JueJinApi)
 	if err != nil {
 		return err
@@ -367,7 +366,6 @@ func (dr DingRobot) DingJueJin() error {
 	err = json.Unmarshal(body, juejinRet)
 	feedCardBuilder := NewFeedCardBuilder()
 	num := RandInt64(1, 196)
-	log.Println("num:", num)
 	for _, s := range juejinRet.D.Entrylist[num: num+3] {
 		feedCardBuilder.Link(s.Title, s.OriginalUrl, s.Screenshot)
 	}
@@ -375,12 +373,11 @@ func (dr DingRobot) DingJueJin() error {
 	if err := dr.SendMessage(msg); err != nil {
 		return err
 	}
-	return err
+	return nil
 }
 
 // 钉新闻
 func (dr DingRobot) DingNews() error {
-	var err error
 	resp, err := http.Get(NewsApi)
 	if err != nil {
 		return err
@@ -393,7 +390,7 @@ func (dr DingRobot) DingNews() error {
 	newsRet := new(newsRet)
 	err = json.Unmarshal(body, newsRet)
 	num := RandInt64(1, 5)
-	tilte := newsRet.Data[0].Title
+	tilte := "[今日头条新闻]"
 	text := "![screenshot](" + newsRet.Data[num].ImageList[0].Url + ") \n" +
 		"### " + newsRet.Data[num].Title + "\n " +
 		newsRet.Data[num].Abstract
@@ -404,7 +401,7 @@ func (dr DingRobot) DingNews() error {
 	if err := dr.SendMessage(msg); err != nil {
 		return err
 	}
-	return err
+	return nil
 }
 
 func (dr DingRobot) DingBasketBall() {
@@ -416,7 +413,7 @@ func (dr DingRobot) DingBasketBall() {
 }
 
 func (dr DingRobot) ExecError(msgType string) {
-	msg := NewMessageBuilder(TypeText).Text("抱歉~狗狗今儿没拿到最新" + msgType + "数据。").Build()
+	msg := NewMessageBuilder(TypeText).Text("抱歉~贝塔狗今儿没拿到最新" + msgType + "数据。").Build()
 	if err := dr.SendMessage(msg); err != nil {
 
 	}
@@ -424,7 +421,15 @@ func (dr DingRobot) ExecError(msgType string) {
 
 func (dr DingRobot) DingStart() {
 	mobiles := []string{}
-	msg := NewMessageBuilder(TypeText).Text("启动！").At(mobiles, true).Build()
+	msg := NewMessageBuilder(TypeText).Text("一！二！三！四……启动！").At(mobiles, true).Build()
+	if err := dr.SendMessage(msg); err != nil {
+
+	}
+}
+
+func (dr DingRobot) DingReport() {
+	mobiles := []string{}
+	msg := NewMessageBuilder(TypeText).Text("汪汪~汪汪汪~贝塔狗喊你们写周报了！").At(mobiles, true).Build()
 	if err := dr.SendMessage(msg); err != nil {
 
 	}
@@ -457,6 +462,10 @@ func main() {
 		if err := robot.DingNews(); err != nil {
 			robot.ExecError("头条科技新闻")
 		}
+	})
+	c.AddFunc(ReportCron, func() {
+		log.Println("start report")
+		robot.DingReport()
 	})
 	//c.AddFunc(NewsCron, func() {
 	//	log.Println("start basketball")
